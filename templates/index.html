@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ai-Assited-Nmap</title>
+    <style>
+        body { 
+            font-family: "Courier New", monospace; 
+            background-color: #0d1117; 
+            color: #00ff00; 
+            margin: 0; 
+            display: flex; 
+            overflow-y: visible;
+        }
+
+        .sidebar { 
+            width: 200px; 
+            background-color: #161b22; 
+            min-height: 100vh; 
+            padding: 20px; 
+            box-shadow: 4px 4px 10px rgba(0, 255, 0, 0.6);
+        }
+
+        .sidebar button { 
+            display: block; 
+            width: 100%; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            background: none; 
+            border: 1px solid #00ff00; 
+            color: #00ff00; 
+            cursor: pointer; 
+            text-align: left; 
+        }
+
+        .sidebar button:hover { 
+            background-color: #00ff00; 
+            color: #0d1117; 
+        }
+
+        .main {
+            width:70%; 
+            padding: 20px; 
+        }
+
+        .panel { 
+            display: none; 
+            margin-top: 20px;
+        }
+
+        .active { 
+            display: block; 
+        }
+
+        .sidebar button{
+            margin-left: 0;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+
+        #nmap-panel textarea { 
+            width: 100%; 
+            height: 100px; 
+            background-color: black; 
+            color: #00ff00; 
+            border: 1px solid #00ff00; 
+            padding: 10px; 
+        }
+
+        #nmap-panel button { 
+            margin-top: 10px; 
+            background-color: #00ff00; 
+            color: black; 
+            border: none; 
+            padding: 10px; 
+            cursor: pointer;
+            border-radius: 10px;
+        }
+        
+        #nmap-output { 
+            white-space: pre-wrap;
+            font-family: "Ubuntu Mono", "DejaVu Sans Mono", "Courier New", monospace;
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #00ff00;
+            background-color: #121212;
+            color: #33ff33;
+            height: 400px;
+            max-width: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            font-size: 12px;
+            line-height: 1.4;
+            word-break: break-word;
+            margin-bottom: 0;
+        }
+
+        #run-btn:hover, #copy-btn:hover,#search-btn:hover, ::-webkit-scrollbar-thumb:hover{
+            background-color: #0e6b0e;
+        }
+      
+        #ai-panel select { 
+            background-color: black; 
+            color: #00ff00; 
+            border: 1px solid #00ff00; 
+            padding: 10px; 
+            margin-top: 10px; 
+            width: 100%;
+        }
+
+        #ai-panel button { 
+            background-color: black; 
+            color: #00ff00; 
+            border: 1px solid #00ff00; 
+            padding: 10px; 
+            margin-top: 20px; 
+            width: 100%;
+            margin-bottom: 20px;             
+        }
+
+        #ai-btn{
+            margin-left: 0px;
+        }
+
+        #cve-info{
+            font-family: monospace; 
+            color: #00ff00; 
+            padding: 10px;
+        }
+        #cve_lookup-panel h4, button{
+            margin-left: 10px;
+        }
+
+        #search-btn { 
+            margin-top: 10px; 
+            background-color: #00ff00; 
+            color: black; 
+            border: none; 
+            padding: 10px; 
+            cursor: pointer;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar {
+             height: 10px; 
+             width: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background-color: #149414;
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background-color: #0d1117;
+        }
+    </style>
+    
+</head>
+<body>
+    <div class="sidebar">
+        <button onclick="showPanel('nmap-panel')">Nmap Scan</button>
+        <button onclick="showPanel('ai-panel')">AI Report</button>
+        <button onclick="showPanel('cve_lookup-panel')">CVE Lookup</button></a>
+    </div>
+    <div class="main">
+        <div id="nmap-panel" class="panel active">
+            <h2>[ Nmap Scan ]</h2>
+            <textarea id="nmap-command" placeholder="Enter Nmap command..."></textarea>
+            <button id="run-btn" onclick="runNmap()">Run Scan</button>
+            <pre id="nmap-output">output will appear here...</pre>
+            <div id="output-box">
+                <button id="copy-btn" onclick="copyToClipboard()">Copy</button>
+            </div>
+        </div>
+        <div id="ai-panel" class="panel">
+            <h2>[ AI-Assisted Report ]</h2>
+            <select id="ai-model" name="ai_model">
+    		    <option value="NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO">Nous-Hermes</option>
+    		    <option value="Qwen/QwQ-32B-Preview">Qwen-32B</option>
+    		    <option value="databricks/dbrx-instruct">Databricks DBRX</option>
+    		    <option value="deepseek-ai/deepseek-llm-67b-chat">DeepSeek LLM 67B</option>
+    		    <option value="mistralai/Mistral-Small-24B-Instruct-2501">Mistral Small 24B</option>
+    		    <option value="deepseek-ai/DeepSeek-R1">DeepSeek R1</option>
+    		    <option value="deepseek-ai/DeepSeek-V3">DeepSeek V3</option>
+	        </select>
+            <button id="ai-btn" onclick="getAIReport()">Get AI Report</button>
+            <pre id="ai-output">AI analysis will appear here...</pre>
+        </div>
+         
+        <div id="cve_lookup-panel" class="panel">
+            <h2>[ NVD CVE Lookup ]</h2>
+            <h4>Need a Lookup?</h1>
+            <button id="search-btn" onclick="getCVELookup()">Search</button>
+            <pre id="cve-info"></pre>
+
+        </div>
+    </div>
+    <script>
+        function showPanel(panelId) {
+            document.querySelectorAll(".panel").forEach(panel => panel.classList.remove("active"));
+            document.getElementById(panelId).classList.add("active");
+        }
+
+        function runNmap() {
+            let command = document.getElementById("nmap-command").value;
+            let outputDiv = document.getElementById("nmap-output");
+            outputDiv.innerHTML = "Starting Nmap scan...\n";
+
+            let eventSource = new EventSource(`/scan?nmap_command=${encodeURIComponent(command)}`);
+            eventSource.onmessage = function (event) {
+                outputDiv.innerHTML += event.data + "\n"; 
+                outputDiv.scrollTop = outputDiv.scrollHeight;
+            };
+
+            eventSource.onerror = function () {
+                eventSource.close();
+            };
+        }
+
+        function getAIReport() {
+            let model = document.getElementById("ai-model").value;
+            let scanData = document.getElementById("nmap-output").innerText.trim();
+            let aiOutput = document.getElementById("ai-output");
+
+            aiOutput.innerHTML = "<b>[Fetching AI Report from " + model + "...]</b>";
+    
+            fetch("/get_ai_report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ai_model: model, scan_data: scanData })
+            })
+            .then(response => response.json())
+            .then(data => {
+            
+            if (data.error) {
+                aiOutput.innerHTML = `<b style="color:red;">Error:</b> ${data.error}`;
+            } 
+            else {
+                aiOutput.innerHTML = `<b>AI Analysis:</b><br>`;
+                let preTag = document.createElement("pre"); 
+                preTag.textContent = data.response_text; 
+                preTag.setAttribute("style", `
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    max-width: 100%;
+                    font-size: 13px;
+                    overflow-x: hidden; 
+                    font-size: 14px; 
+                    font-family: monospace; 
+                    padding: 10px;
+                    line-height: 2;
+                `);
+                
+                aiOutput.appendChild(preTag);                 
+
+            }}).catch(error => {aiOutput.innerHTML = `<b style="color:red;">Request Failed:</b> ${error}`;});
+        }
+        
+
+        function getCVELookup() {
+            const messages = [
+                "Extracting Services and Versions from Report...",
+                "Requesting Data from National Vulnerability Database...",
+                "Processing Vulnerability Data..."
+            ];
+
+            let index = 0;
+            const container = document.getElementById("cve-info");
+
+            function typeMessage(message, callback) {
+            container.innerHTML = "";
+            let i = 0;
+            let interval = setInterval(() => {
+                if (i < message.length) {
+                    container.innerHTML += message[i];
+                    i++;
+                } 
+                else {
+                    clearInterval(interval);
+                    setTimeout(callback, 1000); 
+            }}, 10);}
+
+            function showMessages() {
+                if (index < messages.length) {
+                    typeMessage(messages[index], () => {
+                    index++;
+                    showMessages();
+                });
+                } 
+                else {
+                    fetchCVEData();  
+                }
+            }
+            showMessages();
+        }
+
+        function fetchCVEData() {
+            fetch("/analyze") 
+            .then(response => response.json())
+            .then(data => {
+                displayCVEData(data);
+            })
+            .catch(error => {
+                document.getElementById("cve-info").innerHTML = `<span style="color:red;">Error fetching CVE data: ${error}</span>`;
+            });
+        }
+        
+        function displayCVEData(data) {
+            const container = document.getElementById("cve-info");
+            container.innerHTML = "";  
+        
+            if (data.error) {
+                container.innerHTML = `<p style="color: red;"><strong>Error:</strong> ${data.error}</p>`;
+                return;
+            }
+        
+            if (!data.formatted_data) {
+                container.innerHTML = "<p>No vulnerabilities found.</p>";
+                return;
+            }
+        
+            const preElement = document.createElement("pre");
+            preElement.textContent = data.formatted_data;
+            preElement.setAttribute("style", `
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                max-width: 100%;
+                font-size: 14px; 
+                overflow-x: hidden; 
+                font-family: monospace; 
+                padding: 10px;
+                line-height: 1.5;
+            `);
+            container.appendChild(preElement);
+        }
+        
+        function copyToClipboard() {
+                    let output = document.getElementById("nmap-output").innerText;
+                    navigator.clipboard.writeText(output).then(() => {
+                        alert("Copied to clipboard!");
+                    }).catch(err => {
+                        alert("Error copying: ", err);
+                    });
+                }
+
+    </script>
+</body>
+</html>
