@@ -29,7 +29,7 @@ if not NVD_API_KEY:
     raise ValueError("❌ NVD_API_KEY is missing in api.json!")
 
 client = ChatCompletionsClient(
-    endpoint="https://models.github.ai/inference",
+    endpoint="https://models.inference.ai.azure.com",
     credential=AzureKeyCredential(GITHUB_TOKEN)
 )
 
