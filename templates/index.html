@@ -12,6 +12,8 @@
             margin: 0; 
             display: flex; 
             overflow-y: visible;
+
+
         }
 
         .sidebar { 
@@ -176,17 +178,8 @@
         </div>
         <div id="ai-panel" class="panel">
             <h2>[ AI-Assisted Report ]</h2>
-            <select id="ai-model" name="ai_model">
-    		    <option value="NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO">Nous-Hermes</option>
-    		    <option value="Qwen/QwQ-32B-Preview">Qwen-32B</option>
-    		    <option value="databricks/dbrx-instruct">Databricks DBRX</option>
-    		    <option value="deepseek-ai/deepseek-llm-67b-chat">DeepSeek LLM 67B</option>
-    		    <option value="mistralai/Mistral-Small-24B-Instruct-2501">Mistral Small 24B</option>
-    		    <option value="deepseek-ai/DeepSeek-R1">DeepSeek R1</option>
-    		    <option value="deepseek-ai/DeepSeek-V3">DeepSeek V3</option>
-	        </select>
             <button id="ai-btn" onclick="getAIReport()">Get AI Report</button>
-            <pre id="ai-output">AI analysis will appear here...</pre>
+            <pre id="ai-output" >AI analysis will appear here...</pre>
         </div>
          
         <div id="cve_lookup-panel" class="panel">
@@ -220,43 +213,38 @@
         }
 
         function getAIReport() {
-            let model = document.getElementById("ai-model").value;
-            let scanData = document.getElementById("nmap-output").innerText.trim();
-            let aiOutput = document.getElementById("ai-output");
+    const aiOutput = document.getElementById("ai-output");
+    aiOutput.textContent = "Fetching AI analysis...\n";
+    aiOutput.setAttribute("style", `
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                max-width: 100%;
+                font-size: 14px; 
+                overflow-x: hidden; 
+                font-family: monospace; 
+                padding: 10px;
+                line-height: 1.5;
+            `);
 
-            aiOutput.innerHTML = "<b>[Fetching AI Report from " + model + "...]</b>";
-    
-            fetch("/get_ai_report", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ai_model: model, scan_data: scanData })
-            })
-            .then(response => response.json())
-            .then(data => {
-            
-            if (data.error) {
-                aiOutput.innerHTML = `<b style="color:red;">Error:</b> ${data.error}`;
-            } 
-            else {
-                aiOutput.innerHTML = `<b>AI Analysis:</b><br>`;
-                let preTag = document.createElement("pre"); 
-                preTag.textContent = data.response_text; 
-                preTag.setAttribute("style", `
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                    max-width: 100%;
-                    font-size: 13px;
-                    overflow-x: hidden; 
-                    font-size: 14px; 
-                    font-family: monospace; 
-                    padding: 10px;
-                    line-height: 2;
-                `);
-                
-                aiOutput.appendChild(preTag);                 
+    fetch("/get_ai_report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scan_data: "Your Nmap scan results here" })  // Replace with actual data
+    })
+    .then(response => {
+        if (!response.ok) throw new Error("AI request failed.");
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        return reader.read().then(function processText({ done, value }) {
+            if (done) return;
+            aiOutput.textContent += decoder.decode(value);
+            return reader.read().then(processText);
+        });
+    })
+    .catch(error => aiOutput.textContent = `Error: ${error.message}`);
+}
 
-            }}).catch(error => {aiOutput.innerHTML = `<b style="color:red;">Request Failed:</b> ${error}`;});
-        }
         
 
         function getCVELookup() {

@@ -2,19 +2,36 @@ from flask import Flask, render_template, request, Response, jsonify, json
 import subprocess
 import re
 import requests
+import os
+import time
+from azure.ai.inference import ChatCompletionsClient
+from azure.core.credentials import AzureKeyCredential
+from azure.ai.inference.models import UserMessage
 
 app = Flask(__name__)
 
 # Load API Key from api.json
-def load_api_key():
+def load_api_key(key_name):
     try:
         with open("api.json", "r") as file:
             data = json.load(file)
-            return data.get("NVD_API_KEY", None)
+            return data.get(key_name, None)
     except (FileNotFoundError, json.JSONDecodeError):
         return None
 
-NVD_API_KEY = load_api_key()
+# Load API keys
+NVD_API_KEY = load_api_key("NVD_API_KEY")
+GITHUB_TOKEN = load_api_key("GITHUB_TOKEN")
+
+if not GITHUB_TOKEN:
+    raise ValueError("❌ GITHUB_TOKEN is missing in api.json!")
+if not NVD_API_KEY:
+    raise ValueError("❌ NVD_API_KEY is missing in api.json!")
+
+client = ChatCompletionsClient(
+    endpoint="https://models.github.ai/inference",
+    credential=AzureKeyCredential(GITHUB_TOKEN)
+)
 
 # Extract service names and versions from nmap output
 def extract_services(nmap_output):
@@ -32,9 +49,9 @@ def extract_services(nmap_output):
 # Query NVD for CVEs related to a specific service and version
 def get_cve_data(service, version):
     if not NVD_API_KEY:
-        return {"error": "Missing API key. Ensure api.json contains 'NVD_API_KEY'."}
+        return [{"CVE": "Error", "Description": "Missing API key. Ensure api.json contains 'NVD_API_KEY'."}]
 
-    query = f"{service} {version}" if version != "" else service
+    query = f"{service} {version}" if version else service
     url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch={query}"
     headers = {"apiKey": NVD_API_KEY, "Content-Type": "application/json"}
 
@@ -67,7 +84,8 @@ def get_cve_data(service, version):
         return cve_list
 
     except requests.exceptions.RequestException as e:
-        return {"error": f"API request failed: {str(e)}"}
+        return [{"CVE": "Error", "Description": f"API request failed: {str(e)}"}]
+    
 nmap_scan =""
 
 # Command Sanitization
@@ -99,62 +117,62 @@ def scan():
 # AI Report Generation
 @app.route("/get_ai_report", methods=["POST"])
 def get_ai_report():
+    global nmap_scan
     data = request.json
-    ai_model = data.get("ai_model", "deepseek-ai/DeepSeek-R1")
-    scan_data = data.get("scan_data", "").strip()
+    scan_data = data.get(nmap_scan, "").strip()
 
-    AI_MODELS = [
-        "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
-        "Qwen/QwQ-32B-Preview",
-        "databricks/dbrx-instruct",
-        "deepseek-ai/deepseek-llm-67b-chat",
-        "mistralai/Mistral-Small-24B-Instruct-2501",
-        "deepseek-ai/DeepSeek-R1",
-        "deepseek-ai/DeepSeek-V3"
-    ]
-
-    if ai_model not in AI_MODELS:
-        return jsonify({"error": "Invalid AI model selected."}), 400
-
-    if not scan_data:
+    if not nmap_scan:
         return jsonify({"error": "Scan data is empty. Provide valid input."}), 400
+	
+    user_query = f"Analyze this scan report and suggest further commands:\n{nmap_scan}"  # Change Prompt if needed
 
-    url = "https://api.blackbox.ai/api/chat"
-    payload = {
-	# Change Prompt if needed
-        "messages": [{"content": f"Buddy! Analyse this scan report fully and also suggest 7 more commands with short description and matching current services on this report for further scans helping to find vulnerabilities : {scan_data}", "role": "user"}],
-        "model": ai_model,
-        "max_tokens": 1024
-    }
-    headers = {"Content-Type": "application/json"}
-
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
-        response.raise_for_status()                                                  # Raise an exception for 4xx and 5xx HTTP errors
-
+    def generate_response():
+        yield "Initializing GitHub AI Chat Client...\n\n"
+        yield "✅ Successfully authenticated with GitHub AI endpoint\n\n"
+        yield "📩 Sending query to DeepSeek-R1 model:\n----------------------------------------\n\n"
+        yield f"{nmap_scan}\n\n"
+        yield "----------------------------------------\n\n"
+        yield "⌛ Please be patient for a minute... Fetching AI analysis...\n\n"
+        yield "----------------------------------------\n\n"
+        start_time = time.time()
+        
         try:
-            ai_response = response.json()                                            # Try parsing JSON response
-            if isinstance(ai_response, dict) and "text" in ai_response:
-                return jsonify({"response_text": ai_response["text"]})               # Expected JSON format
-            else:
-                return jsonify({"response_text": response.text})                     # If JSON doesn't contain "text" key, return raw text
-        except ValueError:
-            return jsonify({"response_text": response.text})                         # Return plain text if JSON parsing fails
+            response = client.complete(
+                messages=[UserMessage(user_query)],
+                model="DeepSeek-R1",
+                max_tokens=2048,
+                temperature=0.7
+            )
 
-    except requests.exceptions.Timeout:
-        return jsonify({"error": "AI request timed out"}), 500
+            elapsed_time = time.time() - start_time
 
-    except requests.exceptions.ConnectionError:
-        return jsonify({"error": "Failed to connect to AI API. Check your network or API URL."}), 500
 
-    except requests.exceptions.HTTPError as http_err:
-        return jsonify({"error": f"HTTP error occurred: {http_err}", "status_code": response.status_code}), 500
 
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"AI request failed: {str(e)}"}), 500
+            yield f"⏱️ Received response in {elapsed_time:.2f} seconds\n\n"
+            yield f"🛠️ Model parameters:\n  - Model: {response.model}\n  - Tokens used: {response.usage.total_tokens}\n  - Finish reason: {response.choices[0].finish_reason}\n\n"
 
-    except Exception as e:
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500                # Catch-all for unexpected errors
+            yield "📝 Response content:\n==================================================\n\n"
+            for chunk in response.choices[0].message.content.split("\n"):
+                yield f"{chunk}\n\n"
+                time.sleep(0.1) 
+
+            yield "==================================================\n\n"
+            yield "✅ AI Analysis Complete!\n\n"
+
+        except Exception as e:
+            yield f"🔥 Critical error occurred: {str(e)}\n\n"
+            yield "⚠️ Troubleshooting tips:\n - Verify your GITHUB_TOKEN is valid and has proper permissions\n - Check network connectivity to GitHub AI endpoint\n - Ensure the DeepSeek-R1 model is available in your region\n\n"
+         
+            print(f"\n🔥 Critical error occurred: {str(e)}")
+            print("⚠️ Troubleshooting tips:")
+            print("- Verify your GITHUB_TOKEN is valid and has proper permissions")
+            print("- Check network connectivity to GitHub AI endpoint")
+            print("- Ensure the DeepSeek-R1 model is available in your region")
+            raise  # Re-raise exception after logging
+        
+        print("\n✨ Chat completion process completed successfully!")
+
+    return Response(generate_response(), mimetype="text/event-stream")
 
 #CVE Lookup
 @app.route("/analyze", methods=["GET"])
@@ -173,7 +191,6 @@ def analyze():
     if not any(results.values()):  
         return jsonify({"error": "No CVEs found for detected services."}), 404
 
-    # Formatting the response
     formatted_response = []
 
     for service, cve_list in results.items():
@@ -181,17 +198,19 @@ def analyze():
         formatted_response.append(service_name)
 
         for cve in cve_list:
+            if not isinstance(cve, dict): 
+                continue  
+
             cve_entry = (
-                f"CVE ID: {cve['CVE']}\n"
-                f"Description: {cve['Description']}\n"
-                f"Risk Score: {cve['Risk Score']} | Exploitability: {cve['Exploitability']}\n"
+                f"CVE ID: {cve.get('CVE', 'Unknown')}\n"
+                f"Description: {cve.get('Description', 'No description available')}\n"
+                f"Risk Score: {cve.get('Risk Score', 'N/A')} | Exploitability: {cve.get('Exploitability', 'N/A')}\n"
                 "--------------------------------------------------"
-            )
+             )
             formatted_response.append(cve_entry)
 
+
     return jsonify({"formatted_data": "\n".join(formatted_response)})
-
-
 
 # Home route
 @app.route("/")
@@ -199,4 +218,4 @@ def index():
     return render_template("index.html")
 
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)

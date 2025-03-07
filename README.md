@@ -2,35 +2,32 @@
 
 ## Overview
 
-AI-Assisted Nmap is a web-based tool that integrates Nmap scanning with AI-powered analysis. It allows users to run Nmap scans, extract service information, check for vulnerabilities via NVD API, and generate AI-assisted reports for deeper analysis and further reconnaissance suggestions.
+AI-Assisted Nmap is a web-based tool that integrates Nmap scanning with AI-powered analysis. It enables users to execute Nmap scans, extract service details, query the NVD API for vulnerabilities, and generate AI-assisted reports for deeper analysis and reconnaissance recommendations.
 
 ## Features
 
-- **Run Nmap Scans:** Execute Nmap commands via the web interface.
+- **Run Nmap Scans:** Execute Nmap commands through a web interface.
 - **Extract Service Information:** Parse Nmap output to identify running services and versions.
-- **CVE Lookup:** Query NVD API for CVEs related to detected services.
-- **AI-Powered Analysis:** Use AI models to analyze scan results and suggest further reconnaissance steps.
-- **Real-time Scan Streaming:** Display scan progress in real time.
+- **CVE Lookup:** Query the NVD API for CVEs related to detected services.
+- **AI-Powered Analysis:** Utilize AI models to analyze scan results and suggest further reconnaissance steps.
+- **Real-Time Scan Streaming:** Display scan progress in real-time.
 - **Custom AI Model Selection:** Choose from multiple AI models for analysis.
 
 ## Supported AI Models
 
-The tool allows users to select from the following AI models for scan result analysis:
+Users can select AI models from the GitHub marketplace for scan result analysis:
 
-- `NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO`
-- `Qwen/QwQ-32B-Preview`
-- `databricks/dbrx-instruct`
-- `deepseek-ai/deepseek-llm-67b-chat`
-- `mistralai/Mistral-Small-24B-Instruct-2501`
-- `deepseek-ai/DeepSeek-R1`
-- `deepseek-ai/DeepSeek-V3`
+GitHub Models Marketplace: https://github.com/marketplace/models
+
+   **Default Model:** `DeepSeek-R1`
 
 ## Prerequisites
 
 - Python 3.x
 - Flask
 - Nmap
-- API Key for NVD (stored in `api.json`)
+- API key for NVD (stored in `api.json`)
+- GitHub API token for model selection
 - Internet connection for CVE and AI analysis
 
 ## Installation
@@ -44,16 +41,19 @@ The tool allows users to select from the following AI models for scan result ana
    ```bash
    bash install.sh
    ```
-3. Ensure Nmap is installed on your system:
+3. Verify that Nmap is installed:
    ```bash
    nmap --version
    ```
-4. Add your NVD API key to `api.json`:
+4. Add your NVD API key and GitHub API token to `api.json`:
    ```json
    {
-       "NVD_API_KEY": "your_api_key_here"
+       "NVD_API_KEY": "your_api_key_here",
+       "GITHUB_TOKEN": "your_fine-grained_api_key_here"
    }
    ```
+   - Request an NVD API key: https://nvd.nist.gov/developers/request-an-api-key
+   - Generate a GitHub fine-grained api token: https://github.com/settings/tokens
 
 ## Usage
 
@@ -65,59 +65,55 @@ The tool allows users to select from the following AI models for scan result ana
    ```bash
    python app.py
    ```
-3. Open the web interface at:
+3. Open the web interface:
    ```
    http://127.0.0.1:5000
    ```
-4. Enter an Nmap command and run the scan.
+4. Enter an Nmap command and initiate the scan.
 5. Analyze detected services for CVEs.
-6. Generate an AI-powered report for further analysis.
-7. Select an AI model from the available choices for analysis.
+6. Generate an AI-powered report for further insights.
 
 ## API Endpoints
 
 ### `/scan`
-
-- **Method:** GET
-- **Params:** `nmap_command` (string)
-- **Description:** Runs an Nmap scan and streams results.
+- **Method:** GET  
+- **Params:** `nmap_command` (string)  
+- **Description:** Executes an Nmap scan and streams the results.
 
 ### `/analyze`
-
-- **Method:** GET
+- **Method:** GET  
 - **Description:** Extracts services from the last Nmap scan and queries the NVD API for CVE data.
 
 ### `/get_ai_report`
-
-- **Method:** POST
-- **Payload:**
+- **Method:** POST  
+- **Payload:**  
   ```json
   {
       "ai_model": "deepseek-ai/DeepSeek-R1",
-      "scan_data": "Nmap scan results here"
+      "scan_data": "Nmap scan results"
   }
   ```
 - **Description:** Sends scan data to an AI model for analysis and recommendations.
 
-## Editing AI Prompt
+## Customizing AI Prompts
 
-Users can modify the AI prompt used for analysis by editing the `app.py` file at the section marked with:
+Users can modify the AI prompt for analysis by editing the `app.py` file at the designated section:
 
 ```python
-# Change Prompt if needed
+# Modify AI prompt if needed
 ```
 
 This allows customization of how AI interprets and responds to scan results.
 
-## Notes
+## Security Considerations
 
-- Only allows sanitized Nmap commands to prevent arbitrary code execution.
+- Only sanitized Nmap commands are allowed to prevent arbitrary code execution.
 - Uses `subprocess.Popen()` for real-time scan streaming.
 - Supports multiple AI models for analysis.
 
 ## Future Enhancements
 
-- UI improvements.
-- More AI models for enhanced analysis.
-- Additional security hardening.
+- UI improvements
+- Additional AI models for advanced analysis
+- Enhanced security measures
 

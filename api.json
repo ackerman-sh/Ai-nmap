@@ -1,5 +1,6 @@
-{
-
-    "Visit":"https://nvd.nist.gov/developers/request-an-api-key",
-    "NVD_API_KEY": "paste-your-api-key-here"
-}
+   {
+       "Visit":"https://nvd.nist.gov/developers/request-an-api-key",
+       "NVD_API_KEY": "your_api_key_here"
+       "Visit":"https://github.com/settings/tokens",
+       "GITHUB_TOKEN": "your_fine-grained_api_key_here"
+   }

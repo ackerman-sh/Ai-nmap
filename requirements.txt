@@ -1,3 +1,10 @@
+azure-ai-inference==1.0.0b9
+azure-core==1.32.0
+charset-normalizer==3.4.1
+idna==3.10
+isodate==0.7.2
+six==1.17.0
+typing_extensions==4.12.2
 blinker==1.9.0
 certifi==2025.1.31
 charset-normalizer==3.4.1
